@@ -1,0 +1,49 @@
+# Configuration for Rare Pedestrian Detection with Camera Health Awareness
+
+detection:
+  model_name: "yolov8n.pt"
+  confidence_threshold: 0.35
+  iou_threshold: 0.45
+  classes: [0]  # Class 0 is person in COCO
+  device: "cpu" # 'cpu' or '0' for cuda
+
+tracking:
+  tracker_type: "bytetrack"
+  track_high_thresh: 0.5
+  track_low_thresh: 0.1
+  new_track_thresh: 0.6
+  track_buffer: 30
+  match_thresh: 0.8
+  min_persistence_frames: 4
+
+camera_health:
+  weights:
+    blur: 0.30
+    brightness: 0.20
+    occlusion: 0.25
+    noise: 0.15
+    freeze: 0.10
+  thresholds:
+    blur_healthy_var: 120.0
+    blur_critical_var: 25.0
+    brightness_min: 40.0
+    brightness_max: 220.0
+    noise_sigma_max: 25.0
+    freeze_diff_eps: 0.8
+    freeze_patience_frames: 8
+
+rare_case:
+  classifier_type: "random_forest"
+  model_path: "weights/rare_case_model.pkl"
+  decision_threshold: 0.55
+  # Heuristic fallback rules when ML model is training/cold
+  min_camera_health_for_normal: 0.60
+  min_motion_for_real_event: 12.0
+  artifact_health_cutoff: 0.40
+
+generator:
+  output_dir: "data/synthetic_videos"
+  fps: 20
+  width: 854
+  height: 480
+  duration_seconds: 8

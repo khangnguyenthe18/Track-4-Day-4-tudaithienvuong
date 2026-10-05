@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hệ Thống Giám Sát Người Đi Bộ & Sức Khỏe Camera</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header">
+      <div class="header-left">
+        <h1>Giám sát người đi bộ & Sức khỏe Camera</h1>
+        <p class="header-subtitle">Hệ thống AI tích hợp YOLOv8 + ByteTrack + Camera Health Engine (Blur, Brightness, Occlusion, Noise, Freeze)</p>
+      </div>
+      <div class="header-right">
+        <span id="systemStatus" class="system-status" role="status">Đang chạy</span>
+        <div class="status-chip"><span id="fpsVal" class="mono">--</span><span class="unit">FPS</span></div>
+        <div class="status-chip"><span class="label">Độ trễ</span><span id="latencyVal" class="mono">-- ms</span></div>
+      </div>
+    </header>
+    <main class="dashboard-grid">
+      <section class="grid-col left-col" aria-label="Video và theo dõi">
+        <div class="panel monitor-card">
+          <div class="card-header">
+            <h2>Camera trực tiếp</h2>
+            <div class="controls-toolbar">
+              <button id="btnTogglePlay" class="btn-ctrl" type="button"><span id="playText">Tạm dừng</span></button>
+              <button id="btnReset" class="btn-ctrl" type="button">Đặt lại</button>
+              <button id="btnUploadTrigger" class="btn-ctrl btn-upload-trigger" type="button">📤 Tải video lên</button>
+              <button id="btnExport" class="btn-ctrl btn-export" type="button">Xuất 4 video MP4</button>
+            </div>
+          </div>
+          <div class="video-container">
+            <img id="videoStream" src="/api/stream" alt="Video giám sát người đi bộ">
+            <div class="camera-watermark">
+              <div>CAM-04 <span id="watermarkSource" class="watermark-src">[Mô phỏng: Ban ngày]</span></div>
+              <span id="frameCounter">Khung hình #0</span>
+            </div>
+          </div>
+          <div id="decisionHUD" class="decision-hud badge-normal">
+            <span class="decision-label">Kết luận AI</span>
+            <span id="hudDecisionText" class="decision-val">Đang khởi tạo</span>
+            <span id="hudConfidence" class="decision-sub">Độ tin cậy: --%</span>
+          </div>
+
+          <!-- 💡 Explainable AI (XAI) Panel -->
+          <div class="explainable-card" id="explainableCard">
+            <div class="exp-header">
+              <span class="exp-icon">💡</span>
+              <span class="exp-title">Giải Thích Logic Quyết Định Của AI (Explainable AI)</span>
+            </div>
+            <div class="exp-body" id="explainableText">
+              Đang phân tích điều kiện camera và chuyển động đối tượng…
+            </div>
+          </div>
+        </div>
+
+        <!-- Video Source & Scenario Selector Panel -->
+        <div class="panel scenario-card">
+          <div class="card-header">
+            <h2>Nguồn Video & Tình huống</h2>
+            <span id="sourceBadge" class="source-mode-badge badge-synthetic">Nguồn: Mô phỏng chuẩn</span>
+          </div>
+
+          <div class="source-sections-wrapper">
+            <!-- 1. Synthetic benchmark scenarios -->
+            <div class="source-section">
+              <div class="source-section-title">1. Tình huống mô phỏng chuẩn (Benchmark Test)</div>
+              <div class="scenarios-grid" role="group" aria-label="Chọn tình huống mô phỏng">
+                <button type="button" class="scenario-btn active" data-scenario="normal_day" aria-pressed="true">
+                  <span class="s-name">Ban ngày</span>
+                  <span class="s-detail">Bình thường</span>
+                </button>
+                <button type="button" class="scenario-btn" data-scenario="night_rain_rare" aria-pressed="false">
+                  <span class="s-name">Đêm mưa</span>
+                  <span class="s-detail">Điều kiện khắc nghiệt</span>
+                </button>
+                <button type="button" class="scenario-btn" data-scenario="dirty_lens_artifact" aria-pressed="false">
+                  <span class="s-name">Ống kính bẩn</span>
+                  <span class="s-detail">Báo động giả / Vết bẩn</span>
+                </button>
+                <button type="button" class="scenario-btn" data-scenario="frozen_camera" aria-pressed="false">
+                  <span class="s-name">Đứng hình</span>
+                  <span class="s-detail">Lỗi đơ cảm biến</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 2. Real Uploaded Video Ingestion -->
+            <div class="source-section upload-section">
+              <div class="section-title-row">
+                <div class="source-section-title">2. Đẩy video thực tế vào phân tích (YOLOv8 + ByteTrack)</div>
+                <span class="upload-hint">Hỗ trợ: MP4, AVI, MOV, MKV, WEBM (kích thước tối đa khuyến nghị: 200MB)</span>
+              </div>
+
+              <div class="upload-dropzone" id="uploadDropzone">
+                <input type="file" id="videoFileInput" accept=".mp4,.avi,.mov,.mkv,.webm,.m4v" style="display: none;">
+                <div class="dropzone-body">
+                  <div class="dropzone-icon">📁</div>
+                  <div class="dropzone-text">
+                    <span class="drop-main">Kéo & thả tệp video vào đây, hoặc</span>
+                    <button type="button" id="btnSelectFile" class="btn-browse">Chọn tệp từ máy tính</button>
+                  </div>
+                  <div id="uploadStatusText" class="upload-status">Chưa có video thực tế tải lên</div>
+                </div>
+              </div>
+
+              <!-- Uploaded files chips -->
+              <div id="uploadedFilesWrapper" class="uploaded-files-wrapper" style="display: none;">
+                <div class="files-title">Các video thực tế đã tải lên (bấm để chuyển đổi):</div>
+                <div id="uploadedChipsContainer" class="uploaded-chips-container"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel tracks-card">
+          <div class="card-header">
+            <h2>Đối tượng theo dõi (ByteTrack)</h2>
+            <span id="activeTrackCount" class="chip-count">0 đối tượng</span>
+          </div>
+          <div class="table-container" tabindex="0" role="region" aria-label="Bảng đối tượng theo dõi">
+            <table class="tracks-table">
+              <thead>
+                <tr>
+                  <th scope="col">ID</th>
+                  <th scope="col">Vị trí BBox [x1,y1,x2,y2]</th>
+                  <th scope="col">Tin cậy</th>
+                  <th scope="col">Ổn định</th>
+                  <th scope="col">Di chuyển</th>
+                  <th scope="col">Số khung</th>
+                  <th scope="col">Kết quả phân loại</th>
+                </tr>
+              </thead>
+              <tbody id="tracksTableBody">
+                <tr class="empty-row"><td colspan="7">Đang tìm người đi bộ…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <aside class="grid-col right-col" aria-label="Trạng thái camera và kết quả">
+        <div class="panel health-card">
+          <div class="card-header">
+            <h2>Chất lượng camera (5 Chiều)</h2>
+            <span id="healthScoreBadge" class="health-badge-high">Tốt · 100%</span>
+          </div>
+          <div class="health-overview">
+            <div class="overall-gauge-wrapper">
+              <svg class="circular-chart" viewBox="0 0 36 36" role="img" aria-label="Chất lượng camera tổng thể">
+                <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                <path id="overallCircleProgress" class="circle" stroke-dasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                <text x="18" y="20.35" id="overallGaugeText" class="percentage">100%</text>
+              </svg>
+              <div class="gauge-label">Tổng thể</div>
+            </div>
+            <div class="health-bars-list">
+              <div class="health-bar-item"><div class="bar-label"><span>Độ nét (Blur)</span><span id="valBlur" class="val-mono">100%</span></div><div class="progress-track"><div id="barBlur" class="progress-fill fill-good" style="width:100%"></div></div></div>
+              <div class="health-bar-item"><div class="bar-label"><span>Ánh sáng (Brightness)</span><span id="valBright" class="val-mono">100%</span></div><div class="progress-track"><div id="barBright" class="progress-fill fill-good" style="width:100%"></div></div></div>
+              <div class="health-bar-item"><div class="bar-label"><span>Che khuất (Occlusion)</span><span id="valOccl" class="val-mono">100%</span></div><div class="progress-track"><div id="barOccl" class="progress-fill fill-good" style="width:100%"></div></div></div>
+              <div class="health-bar-item"><div class="bar-label"><span>Nhiễu hạt (Noise)</span><span id="valNoise" class="val-mono">100%</span></div><div class="progress-track"><div id="barNoise" class="progress-fill fill-good" style="width:100%"></div></div></div>
+              <div class="health-bar-item"><div class="bar-label"><span>Đóng băng (Freeze)</span><span id="valFreeze" class="val-mono">100%</span></div><div class="progress-track"><div id="barFreeze" class="progress-fill fill-good" style="width:100%"></div></div></div>
+            </div>
+          </div>
+          <div class="diagnostic-tags" id="healthTagsContainer"><span class="diag-tag tag-healthy">Camera tốt</span></div>
+        </div>
+
+        <div class="panel decision-card">
+          <div class="card-header">
+            <h2>Phân loại Sự kiện & Báo động</h2>
+          </div>
+          <div class="probability-bars">
+            <div class="prob-item">
+              <div class="prob-header"><span class="prob-title color-normal">Bình thường (NORMAL)</span><span id="probNormalVal" class="prob-num">0%</span></div>
+              <div class="prob-bar-track"><div id="probNormalFill" class="prob-bar-fill fill-normal" style="width:0%"></div></div>
+            </div>
+            <div class="prob-item">
+              <div class="prob-header"><span class="prob-title color-rare">Người đi bộ trong điều kiện khó (REAL_RARE_EVENT)</span><span id="probRareVal" class="prob-num">0%</span></div>
+              <div class="prob-bar-track"><div id="probRareFill" class="prob-bar-fill fill-rare" style="width:0%"></div></div>
+            </div>
+            <div class="prob-item">
+              <div class="prob-header"><span class="prob-title color-artifact">Báo động giả / Lỗi camera (CAMERA_ARTIFACT)</span><span id="probArtifactVal" class="prob-num">0%</span></div>
+              <div class="prob-bar-track"><div id="probArtifactFill" class="prob-bar-fill fill-artifact" style="width:0%"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel logs-card">
+          <div class="card-header">
+            <h2>Nhật ký hoạt động</h2>
+            <span class="log-indicator">Trực tiếp</span>
+          </div>
+          <div class="log-feed" id="logFeed">
+            <div class="log-item log-info"><span class="log-msg">Đang tải nhật ký…</span></div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

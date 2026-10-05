@@ -1,0 +1,51 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Local environment variables
+.env
+.env.*
+!.env.example
+
+# Generated videos and trained/downloaded model weights
+/data/synthetic_videos/
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.pt
+*.pth
+*.pkl
+*.joblib
+*.onnx
+/runs/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*.swo
+*.pyc
+
+# Editor and operating system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
